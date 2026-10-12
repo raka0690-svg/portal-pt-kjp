@@ -1,49 +1,924 @@
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_self">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Portal PT. KJP</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f1f5f9;
-      color: #1e293b;
-      margin: 0;
-      padding: 24px;
+    body { background-color: #f8f9fa; padding-top: 20px; }
+    .card { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  
+    /* Responsive layout and accessible toast notifications */
+    .container { width: min(100% - 1rem, 1100px); }
+    .card { border: 0; border-radius: 1rem; }
+    .form-control, .form-select, .btn { min-height: 44px; }
+    .btn { white-space: normal; }
+    .invoice-actions { display:flex; flex-wrap:wrap; gap:.65rem; }
+    .invoice-actions .btn { flex: 1 1 190px; }
+    #btnAddPoItem, #btnSavePO { width: 140px; }
+    #appToastHost { position:fixed; z-index:1090; top:1rem; right:1rem; width:min(390px, calc(100vw - 2rem)); }
+    .app-toast { display:flex; gap:.8rem; align-items:flex-start; padding:1rem 1.1rem; margin-bottom:.7rem;
+      border-radius:1rem; color:#fff; box-shadow:0 12px 32px rgba(0,0,0,.22); animation:toastIn .22s ease-out both; }
+    .app-toast.success { background:linear-gradient(135deg,#087f5b,#20a46b); }
+    .app-toast.error { background:linear-gradient(135deg,#b42318,#e5484d); }
+    .app-toast.info { background:linear-gradient(135deg,#175cd3,#528bff); }
+    .app-toast .toast-icon { font-size:1.45rem; line-height:1; }
+    .app-toast .toast-title { font-weight:700; margin-bottom:.15rem; }
+    .app-toast .toast-message { font-size:.92rem; overflow-wrap:anywhere; }
+    .app-toast .toast-close { margin-left:auto; background:none; border:0; color:inherit; font-size:1.25rem; line-height:1; }
+    @keyframes toastIn { from {opacity:0;transform:translateY(-8px)} to {opacity:1;transform:translateY(0)} }
+    @media (max-width:576px) {
+      body { padding-top: .65rem; }
+      .container { width:100%; padding-left:.65rem; padding-right:.65rem; }
+      h2 { font-size:1.35rem; }
+      .card { padding:1rem !important; }
+      .nav-tabs { flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden; }
+      .nav-tabs .nav-link { white-space:nowrap; font-size:.9rem; }
+      #appToastHost { top:.6rem; right:.6rem; width:calc(100vw - 1.2rem); }
     }
 
-    .container {
-      max-width: 600px;
-      margin: 60px auto;
-      padding: 28px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-      text-align: center;
+  
+    :root { --kjp-navy:#082d70; --kjp-blue:#0b3b8f; --kjp-yellow:#ffbd00; --surface:#ffffff; }
+    body { background:linear-gradient(180deg,#edf3fb 0,#f7f9fc 260px); padding-top:0; color:#172b4d; }
+    .portal-header { position:relative; overflow:hidden; margin:0 0 1.6rem; padding:1rem clamp(.8rem,3vw,2rem);
+      background:linear-gradient(120deg,#061d49 0%,#0b367e 62%,#1552a5 100%); color:#fff;
+      box-shadow:0 10px 28px rgba(8,45,112,.22); }
+    .portal-header:after { content:""; position:absolute; right:-50px; top:-95px; width:230px; height:230px;
+      border:28px solid rgba(255,189,0,.16); border-radius:50%; pointer-events:none; }
+    .portal-header-inner { position:relative; z-index:1; width:min(1100px,100%); margin:auto; display:flex;
+      align-items:center; gap:1rem; }
+    .portal-logo { width:62px; height:62px; flex:0 0 62px; border:2px solid rgba(255,255,255,.28);
+      border-radius:16px; object-fit:cover; box-shadow:0 5px 15px rgba(0,0,0,.25); background:#050505; }
+    .portal-brand-title { margin:0; font-size:clamp(1.25rem,3vw,1.9rem); font-weight:800; letter-spacing:.2px; }
+    .portal-brand-subtitle { margin:.22rem 0 0; color:#d8e6ff; font-size:.9rem; }
+    .portal-brand-accent { display:block; width:52px; height:4px; margin-top:.55rem; border-radius:5px; background:var(--kjp-yellow); }
+    .container { width:min(1100px,100% - 1rem); }
+    .card { box-shadow:0 8px 25px rgba(20,45,90,.08); border:1px solid #e4eaf3; }
+    .nav-tabs { border-bottom:1px solid #d7e1f0; gap:.25rem; }
+    .nav-tabs .nav-link { border-radius:.75rem .75rem 0 0; font-weight:650; color:#52627a; }
+    .nav-tabs .nav-link.active { color:var(--kjp-navy); border-color:#d7e1f0 #d7e1f0 #fff; }
+    #appToastHost { position:fixed; z-index:2000; top:1rem; right:1rem; width:min(420px,calc(100vw - 2rem)); pointer-events:none; }
+    .app-toast { position:relative; display:flex; align-items:flex-start; gap:.8rem; padding:1rem 1rem 1rem .9rem;
+      margin:0 0 .75rem; border:1px solid rgba(255,255,255,.35); border-radius:16px; color:#fff;
+      box-shadow:0 18px 45px rgba(9,27,61,.25); backdrop-filter:blur(12px); pointer-events:auto;
+      animation:kjpToastIn .32s cubic-bezier(.2,.8,.2,1) both; }
+    .app-toast.success { background:linear-gradient(125deg,#087f5b,#13a879); }
+    .app-toast.error { background:linear-gradient(125deg,#a51d2d,#e5484d); }
+    .app-toast.info { background:linear-gradient(125deg,#123b83,#3478d4); }
+    .app-toast .toast-icon { width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:12px;
+      background:rgba(255,255,255,.17);font-size:1.25rem;font-weight:800; }
+    .app-toast .toast-title { font-weight:800; font-size:1rem; margin:0 1rem .2rem 0; letter-spacing:.1px; }
+    .app-toast .toast-message { color:rgba(255,255,255,.92);font-size:.9rem;line-height:1.4;overflow-wrap:anywhere; }
+    .app-toast .toast-close { position:absolute;top:.55rem;right:.6rem;border:0;background:transparent;color:white;font-size:1.3rem;line-height:1;opacity:.8; }
+    .app-toast .toast-close:hover { opacity:1; }
+    @keyframes kjpToastIn { from { opacity:0;transform:translate3d(0,-12px,0) scale(.98) } to { opacity:1;transform:translate3d(0,0,0) scale(1) } }
+    @media (max-width:576px) {
+      .portal-header { margin-bottom:1rem; padding:.85rem .75rem; }
+      .portal-header-inner { gap:.75rem; }
+      .portal-logo { width:50px;height:50px;flex-basis:50px;border-radius:13px; }
+      .portal-brand-subtitle { font-size:.78rem; }
+      .container { width:100%;padding-left:.65rem;padding-right:.65rem; }
+      #appToastHost { top:.65rem;right:.65rem;width:calc(100vw - 1.3rem); }
     }
 
-    h1 {
-      color: #1d4ed8;
-    }
 
-    .status {
-      margin-top: 24px;
-      padding: 14px;
-      background: #dcfce7;
-      color: #166534;
-      border-radius: 8px;
-    }
+    .dashboard-hero{background:linear-gradient(125deg,#102a56,#174b85);color:#fff;border-radius:1rem;padding:1.25rem 1.4rem;margin-bottom:1rem;box-shadow:0 10px 28px rgba(16,42,86,.12)}
+    .dashboard-hero h2{font-size:1.35rem;font-weight:800;margin:0 0 .35rem}.dashboard-hero p{margin:0;color:#dbeafe;font-size:.92rem}
+    .dash-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-bottom:1rem}
+    .dash-kpi{background:#fff;border:1px solid #e1e8f2;border-radius:.9rem;padding:1rem;min-width:0;box-shadow:0 4px 14px rgba(25,48,85,.04)}
+    .dash-kpi .label{font-size:.78rem;color:#687891;font-weight:650;margin-bottom:.4rem}.dash-kpi .value{font-size:1.65rem;line-height:1.2;color:#102a56;font-weight:800;overflow-wrap:anywhere}.dash-kpi .hint{font-size:.76rem;color:#8a97aa;margin-top:.3rem}
+    .dash-panel{background:#fff;border:1px solid #e1e8f2;border-radius:.9rem;padding:1rem;margin-bottom:1rem;min-width:0}.dash-panel h3{font-size:1rem;font-weight:800;color:#102a56;margin:0 0 .9rem}
+    .dash-modules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.dash-module{border:1px solid #e1e8f2;border-radius:.8rem;padding:.85rem;min-width:0;background:#fbfdff}.dash-module h4{font-size:.9rem;font-weight:750;margin:0 0 .4rem;color:#19365e}.dash-module p{font-size:.8rem;color:#6b7890;margin:0 0 .7rem}.dash-module .badge{font-size:.68rem;letter-spacing:.03em}
+    .dash-table-wrap{overflow-x:auto}.dash-table{min-width:600px;font-size:.84rem}.dash-table th{white-space:nowrap;color:#61718b;font-size:.75rem;text-transform:uppercase}.dash-table td{vertical-align:middle}
+    @media(max-width:900px){.dash-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dash-modules{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:520px){.dash-modules{grid-template-columns:1fr}.dash-kpi .value{font-size:1.4rem}.dashboard-hero{padding:1rem}}
+
   </style>
 </head>
 <body>
-  <main class="container">
-    <h1>Portal PT. KJP</h1>
-    <p>Portal sedang disiapkan untuk migrasi ke GitHub Pages.</p>
-
-    <div class="status">
-      Halaman GitHub Pages berhasil dimuat.
+  <div id="appToastHost" aria-live="polite" aria-atomic="false"></div>
+  <header class="portal-header">
+    <div class="portal-header-inner">
+      <img class="portal-logo" src="data:image/jpeg;base64,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" alt="Logo Kira Jaya Pratama">
+      <div class="portal-brand">
+        <h1 class="portal-brand-title">Portal System KJP</h1>
+        <p class="portal-brand-subtitle">Kira Jaya Pratama <span aria-hidden="true">•</span> Purchase Order, Delivery Order &amp; Invoice</p>
+        <span class="portal-brand-accent"></span>
+      </div>
     </div>
-  </main>
+  </header>
+  <div class="container">
+    
+    <!-- Navigasi Tabs -->
+    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard-pane" type="button">Dashboard</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="po-tab" data-bs-toggle="tab" data-bs-target="#po-pane" type="button">Form PO</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="do-tab" data-bs-toggle="tab" data-bs-target="#do-pane" type="button">Form DO</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="invoice-tab" data-bs-toggle="tab" data-bs-target="#invoice-pane" type="button">Print Invoice (PDF)</button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="myTabContent">
+      
+      <!-- DASHBOARD UTAMA: data berasal dari sheet PO, DO, dan REKAP INV yang sudah ada -->
+      <div class="tab-pane fade show active" id="dashboard-pane" role="tabpanel">
+        <section class="dashboard-hero d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div><h2>Dashboard Operasional KJP</h2><p>Ringkasan order, pengiriman, dan kesiapan modul operasional dalam satu halaman.</p></div>
+          <div class="text-md-end"><div class="small" style="color:#dbeafe">Pembaruan data</div><strong id="dashUpdatedAt">Memuat data...</strong><div class="mt-2"><button class="btn btn-sm btn-light" type="button" onclick="loadDashboard()">↻ Refresh Dashboard</button></div></div>
+        </section>
+        <div class="dash-kpi-grid">
+          <div class="dash-kpi"><div class="label">TOTAL PURCHASE ORDER</div><div class="value" id="kpiTotalPO">—</div><div class="hint">Nomor PO unik dari sheet PO</div></div>
+          <div class="dash-kpi"><div class="label">PO DALAM PROSES</div><div class="value" id="kpiActivePO">—</div><div class="hint">Belum seluruh qty terkirim</div></div>
+          <div class="dash-kpi"><div class="label">PO SELESAI DIKIRIM</div><div class="value" id="kpiDeliveredPO">—</div><div class="hint">Qty terkirim memenuhi qty PO</div></div>
+          <div class="dash-kpi"><div class="label">CUSTOMER AKTIF</div><div class="value" id="kpiCustomers">—</div><div class="hint">Customer unik di data PO</div></div>
+          <div class="dash-kpi"><div class="label">TOTAL QTY PO</div><div class="value" id="kpiOrderedQty">—</div><div class="hint">Akumulasi qty pada baris PO</div></div>
+          <div class="dash-kpi"><div class="label">TOTAL QTY TERKIRIM</div><div class="value" id="kpiDeliveredQty">—</div><div class="hint">Akumulasi qty pada baris DO</div></div>
+          <div class="dash-kpi"><div class="label">SISA QTY PESANAN</div><div class="value" id="kpiRemainingQty">—</div><div class="hint">Estimasi total PO dikurangi DO</div></div>
+          <div class="dash-kpi"><div class="label">NOMOR DO</div><div class="value" id="kpiTotalDO">—</div><div class="hint">Nomor DO unik yang tercatat</div></div>
+        </div>
+        <section class="dash-panel"><div class="d-flex flex-wrap justify-content-between align-items-center gap-2"><h3 class="mb-0">PO Terbaru</h3><small class="text-muted">Maksimal 10 nomor PO · status dihitung dari qty PO dan DO</small></div>
+          <div class="dash-table-wrap mt-3"><table class="table table-hover dash-table mb-0"><thead><tr><th>No. PO</th><th>Customer</th><th>Baris Item</th><th>Total Qty</th><th>Terkirim</th><th>Sisa Qty</th><th>Status</th></tr></thead><tbody id="dashRecentRows"><tr><td colspan="7" class="text-muted text-center py-4">Memuat data dashboard...</td></tr></tbody></table></div>
+        </section>
+        <section class="dash-panel"><div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><h3 class="mb-0">Roadmap Modul Operasional</h3><span class="badge text-bg-info">Bisa ditambahkan bertahap</span></div>
+          <p class="text-muted small">Modul di bawah disiapkan sebagai struktur pengembangan. Belum menampilkan stok atau progres produksi karena sheet transaksinya belum tersedia pada sistem saat ini.</p>
+          <div class="dash-modules" id="dashModules"><div class="text-muted small">Memuat roadmap...</div></div>
+        </section>
+      </div>
+
+      <!-- 1. TAB FORM PO -->
+      <div class="tab-pane fade" id="po-pane" role="tabpanel">
+        <div class="card p-4">
+          <h4 class="mb-3">Input Purchase Order (PO) - Multi Item</h4>
+          <form id="formPO" onsubmit="submitPO(event)">
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Tanggal</label>
+                <input type="date" class="form-control" id="poTgl" placeholder="DD/MM/YYYY" aria-label="Tanggal (DD/MM/YYYY)" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Nomor PO</label>
+                <input type="text" class="form-control" id="poNo" placeholder="Contoh: 0123 atau PO-001" required>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Customer</label>
+              <select class="form-select" id="poCustomer" onchange="loadGlobalItems()" required>
+                <option value="">-- Pilih Customer --</option>
+              </select>
+            </div>
+
+            <hr>
+            <h5 class="mb-3">Daftar Item Barang</h5>
+            <div id="itemListContainer">
+              <div class="row item-row mb-3 align-items-end border-bottom pb-3">
+                <div class="col-md-5">
+                  <label class="form-label">Item Produk</label>
+                  <select class="form-select item-select" required>
+                    <option value="">-- Pilih Customer Terlebih Dahulu --</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Qty</label>
+                  <input type="number" class="form-control item-qty" min="1" step="any" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Discount</label>
+                  <input type="number" class="form-control item-disc" value="0">
+                </div>
+                <div class="col-md-1">
+                  <button type="button" class="btn btn-danger btn-sm" onclick="removeItemRow(this)" disabled>X</button>
+                </div>
+              </div>
+            </div>
+
+            <button type="button" class="btn btn-secondary btn-sm mb-3" id="btnAddPoItem" onclick="addItemRow()">Tambah Item</button>
+            <br>
+            <button type="submit" class="btn btn-primary" id="btnSavePO">Simpan PO</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 2. TAB FORM DO -->
+      <div class="tab-pane fade" id="do-pane" role="tabpanel">
+        <div class="card p-4">
+          <h4 class="mb-3">Input Delivery Order (DO) - Multi Item</h4>
+          <form id="formDO" onsubmit="submitDO(event)">
+            <div class="mb-3">
+              <label class="form-label">Pilih No PO</label>
+              <select class="form-select" id="doNoPo" onchange="onPoSelectedForDO()" required>
+                <option value="">-- Pilih No PO --</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <input type="hidden" id="doNoAuto" value="Generate otomatis saat disimpan">
+            </div>
+            
+            <hr>
+            <h5 class="mb-3">Daftar Item Pengiriman (DO)</h5>
+            <div id="doItemListContainer">
+              <p class="text-muted">Silakan pilih No PO terlebih dahulu.</p>
+            </div>
+            
+            <button type="button" class="btn btn-secondary btn-sm mb-3" id="btnAddDoRow" onclick="addDoItemRow()" style="display:none;">+ Tambah Item DO Lain</button>
+            <br>
+            <button type="submit" class="btn btn-success" id="btnSaveDO" disabled>Simpan DO</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 3. TAB PRINT INVOICE -->
+      <div class="tab-pane fade" id="invoice-pane" role="tabpanel">
+        <div class="card p-4">
+          <h4 class="mb-3">Cetak Invoice PDF</h4>
+          <div class="mb-3">
+            <label class="form-label">Pilih No PO (Status Close)</label>
+            <select class="form-select" id="invNoPo" required>
+              <option value="">-- Pilih No PO --</option>
+            </select>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-primary" id="btnPreviewInvoice" onclick="previewInvoicePDF()">Preview Invoice</button>
+            <button type="button" class="btn btn-danger" id="btnDownloadInvoice" onclick="downloadInvoicePDF()">Download PDF Invoice</button>
+          </div>
+          <small class="text-muted d-block mt-2">Preview dan download menggunakan data DO aktual. Template invoice utama tidak diubah.</small>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Script Frontend -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // GitHub Pages compatibility bridge: keeps existing google.script.run calls intact.
+    (function () {
+      'use strict';
+      var BRIDGE_URL = 'https://script.google.com/macros/s/AKfycbxs8B5HgHj9zX0SQjrtTFzy6LheXZDIUyn-0KkAXIZ8M1S0ChrXgCm8F0lK8L8_a3wSuw/exec?bridge=1';
+      var ALLOWED_METHODS = new Set([
+        'getDashboardData', 'getCustomerList', 'getItemListByCustomer', 'savePO',
+        'getActivePOList', 'getPODetailsForDO', 'saveDO',
+        'getClosedPOListForInvoice', 'generateInvoicePDF'
+      ]);
+      var iframe = document.createElement('iframe');
+      iframe.title = 'KJP backend connection';
+      iframe.setAttribute('aria-hidden', 'true');
+      iframe.tabIndex = -1;
+      iframe.style.cssText = 'position:absolute;width:1px;height:1px;border:0;opacity:0;pointer-events:none;left:-10px;top:-10px';
+      iframe.src = BRIDGE_URL;
+      var bridgeReady = false;
+      var queue = [];
+      var nextId = 1;
+      var pending = new Map();
+
+      function sendRequest(req) {
+        if (!bridgeReady || !iframe.contentWindow) { queue.push(req); return; }
+        iframe.contentWindow.postMessage({ type: 'KJP_RPC', id: req.id, method: req.method, args: req.args }, '*');
+      }
+      function flushQueue() {
+        while (bridgeReady && queue.length) sendRequest(queue.shift());
+      }
+      window.addEventListener('message', function (event) {
+        if (event.source !== iframe.contentWindow || !event.data) return;
+        var msg = event.data;
+        if (msg.type === 'KJP_BRIDGE_READY') { bridgeReady = true; flushQueue(); return; }
+        if (msg.type !== 'KJP_RPC_RESULT') return;
+        var item = pending.get(msg.id);
+        if (!item) return;
+        pending.delete(msg.id);
+        if (msg.ok) { if (typeof item.success === 'function') item.success(msg.result); }
+        else {
+          var err = new Error(msg.error || 'Permintaan ke server gagal.');
+          if (typeof item.failure === 'function') item.failure(err);
+          else console.error(err);
+        }
+      });
+      iframe.addEventListener('load', function () {
+        if (iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'KJP_BRIDGE_PING' }, '*');
+      });
+      (document.body || document.documentElement).appendChild(iframe);
+
+      function makeRunner(success, failure) {
+        return new Proxy({}, {
+          get: function (_target, prop) {
+            if (prop === 'withSuccessHandler') return function (fn) { return makeRunner(fn, failure); };
+            if (prop === 'withFailureHandler') return function (fn) { return makeRunner(success, fn); };
+            if (prop === 'withUserObject') return function () { return makeRunner(success, failure); };
+            if (typeof prop !== 'string') return undefined;
+            return function () {
+              if (!ALLOWED_METHODS.has(prop)) {
+                var error = new Error('Metode backend tidak diizinkan: ' + prop);
+                if (typeof failure === 'function') failure(error); else console.error(error);
+                return;
+              }
+              var id = nextId++;
+              pending.set(id, { success: success, failure: failure });
+              sendRequest({ id: id, method: prop, args: Array.prototype.slice.call(arguments) });
+            };
+          }
+        });
+      }
+      window.google = window.google || {};
+      window.google.script = window.google.script || {};
+      Object.defineProperty(window.google.script, 'run', { configurable: true, get: function () { return makeRunner(null, null); } });
+    })();
+
+    var globalItemsList = [];
+    var currentPoDetails = []; // Menyimpan sisa item PO yang aktif
+
+    function showAppToast(type, title, message, duration) {
+      var host = document.getElementById('appToastHost');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'appToastHost';
+        host.setAttribute('aria-live', 'polite');
+        document.body.appendChild(host);
+      }
+      var toast = document.createElement('div');
+      toast.className = 'app-toast ' + (type || 'info');
+      var icon = type === 'success' ? '✓' : (type === 'error' ? '!' : 'i');
+      var titleEl = document.createElement('div');
+      titleEl.className = 'toast-title';
+      titleEl.textContent = title || 'Informasi';
+      var messageEl = document.createElement('div');
+      messageEl.className = 'toast-message';
+      messageEl.textContent = message || '';
+      var iconEl = document.createElement('div');
+      iconEl.className = 'toast-icon';
+      iconEl.textContent = icon;
+      var bodyEl = document.createElement('div');
+      bodyEl.style.flex = '1';
+      bodyEl.appendChild(titleEl);
+      bodyEl.appendChild(messageEl);
+      var close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'toast-close';
+      close.setAttribute('aria-label', 'Tutup notifikasi');
+      close.textContent = '×';
+      close.onclick = function() { toast.remove(); };
+      toast.appendChild(iconEl);
+      toast.appendChild(bodyEl);
+      toast.appendChild(close);
+      host.appendChild(toast);
+      window.setTimeout(function() {
+        if (toast.parentNode) {
+          toast.style.opacity = '0';
+          toast.style.transform = 'translateY(-8px)';
+          window.setTimeout(function() { if (toast.parentNode) toast.remove(); }, 220);
+        }
+      }, duration || 4200);
+    }
+
+    function showAppError(err, fallback) {
+      var msg = err && err.message ? err.message : (typeof err === 'string' ? err : fallback || 'Terjadi kesalahan.');
+      showAppToast('error', 'Proses gagal', msg, 6500);
+    }
+
+    function formatDashNumber(value) {
+      return Number(value || 0).toLocaleString('id-ID', {maximumFractionDigits:2});
+    }
+    function loadDashboard() {
+      var rows = document.getElementById('dashRecentRows');
+      if (rows) rows.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-4">Memuat data dashboard...</td></tr>';
+      google.script.run.withSuccessHandler(function(data) {
+        data = data || {}; var s = data.summary || {};
+        var set = function(id, val) { var el=document.getElementById(id); if(el) el.textContent=formatDashNumber(val); };
+        set('kpiTotalPO',s.totalPO); set('kpiActivePO',s.activePO); set('kpiDeliveredPO',s.deliveredPO); set('kpiCustomers',s.customers);
+        set('kpiOrderedQty',s.totalOrderedQty); set('kpiDeliveredQty',s.totalDeliveredQty); set('kpiRemainingQty',s.totalRemainingQty); set('kpiTotalDO',s.totalDO);
+        var updated=document.getElementById('dashUpdatedAt'); if(updated) updated.textContent=data.updatedAt || '—';
+        if(rows) {
+          var list=Array.isArray(data.recentPO)?data.recentPO:[];
+          rows.innerHTML=list.length?list.map(function(p){var done=p.status==='DELIVERED';return '<tr><td><strong>'+escapeHtml(p.noPo)+'</strong></td><td>'+escapeHtml(p.customer)+'</td><td>'+formatDashNumber(p.items)+'</td><td>'+formatDashNumber(p.qty)+'</td><td>'+formatDashNumber(p.delivered)+'</td><td>'+formatDashNumber(p.remaining)+'</td><td><span class="badge '+(done?'text-bg-success':'text-bg-warning')+'">'+escapeHtml(p.status)+'</span></td></tr>';}).join(''):'<tr><td colspan="7" class="text-muted text-center py-4">Belum ada data PO.</td></tr>';
+        }
+        var modules=document.getElementById('dashModules'); if(modules){var ms=Array.isArray(data.modules)?data.modules:[];modules.innerHTML=ms.map(function(m){return '<article class="dash-module"><div class="d-flex justify-content-between align-items-start gap-2"><h4>'+escapeHtml(m.title)+'</h4><span class="badge text-bg-secondary">'+escapeHtml(m.status)+'</span></div><p>'+escapeHtml(m.description)+'</p></article>';}).join('');}
+      }).withFailureHandler(function(err){if(rows) rows.innerHTML='<tr><td colspan="7" class="text-danger text-center py-4">Dashboard gagal dimuat: '+escapeHtml(err&&err.message?err.message:'Periksa fungsi getDashboardData().')+'</td></tr>';showAppError(err,'Gagal memuat dashboard.');}).getDashboardData();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // Dashboard menjadi halaman awal; fitur PO/DO/Invoice tetap memakai loader sebelumnya.
+      loadDashboard();
+      loadCustomers();
+      loadActivePOs();
+      loadClosedPOsForInvoice();
+    });
+
+    function loadCustomers() {
+      var select = document.getElementById('poCustomer');
+      if (!select) return;
+      select.innerHTML = '<option value="">Memuat daftar customer...</option>';
+      select.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(customers) {
+          select.innerHTML = '<option value="">-- Pilih Customer --</option>';
+          select.disabled = false;
+          (Array.isArray(customers) ? customers : []).forEach(function(c) {
+            if (c === null || String(c).trim() === '') return;
+            var opt = document.createElement('option');
+            opt.value = String(c);
+            opt.textContent = String(c);
+            select.appendChild(opt);
+          });
+          if (select.options.length === 1) {
+            showAppToast('error', 'Daftar customer kosong',
+              'getCustomerList() tidak mengembalikan nama customer. Periksa fungsi backend dan sumber datanya.');
+          }
+        })
+        .withFailureHandler(function(err) {
+          select.disabled = false;
+          select.innerHTML = '<option value="">Gagal memuat customer</option>';
+          showAppError(err, 'Gagal menjalankan getCustomerList().');
+        })
+        .getCustomerList();
+    }
+
+    function loadGlobalItems() {
+      var cust = document.getElementById('poCustomer').value;
+      var selects = document.querySelectorAll('.item-select');
+
+      selects.forEach(function(sel) {
+        sel.innerHTML = '<option value="">-- Pilih Item --</option>';
+        sel.disabled = !cust;
+      });
+
+      if (!cust) return;
+
+      selects.forEach(function(sel) {
+        sel.innerHTML = '<option value="">Memuat item...</option>';
+        sel.disabled = true;
+      });
+
+      google.script.run
+        .withSuccessHandler(function(items) {
+          globalItemsList = Array.isArray(items) ? items : [];
+          updateAllItemDropdowns();
+          document.querySelectorAll('.item-select').forEach(function(sel) {
+            sel.disabled = false;
+          });
+          if (!globalItemsList.length) {
+            showAppToast('info', 'Item tidak ditemukan',
+              'Tidak ada item untuk customer ini. Periksa sheet "Produk", kolom A (Customer) dan kolom C (Item).');
+          }
+        })
+        .withFailureHandler(function(err) {
+          document.querySelectorAll('.item-select').forEach(function(sel) {
+            sel.innerHTML = '<option value="">Gagal memuat item</option>';
+            sel.disabled = false;
+          });
+          showAppError(err, 'Gagal menjalankan getItemListByCustomer().');
+        })
+        .getItemListByCustomer(cust);
+    }
+
+    function updateAllItemDropdowns() {
+      var selects = document.querySelectorAll('.item-select');
+      selects.forEach(function(sel) {
+        var currentVal = sel.value;
+        sel.innerHTML = '<option value="">-- Pilih Item --</option>';
+        globalItemsList.forEach(function(i) {
+          var opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = i;
+          if(i === currentVal) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    function addItemRow() {
+      var container = document.getElementById('itemListContainer');
+      var firstRow = container.querySelector('.item-row');
+      var newRow = firstRow.cloneNode(true);
+      
+      newRow.querySelector('.item-qty').value = '';
+      newRow.querySelector('.item-disc').value = '0';
+      newRow.querySelector('button').disabled = false;
+      
+      container.appendChild(newRow);
+      updateAllItemDropdowns();
+    }
+
+    function removeItemRow(btn) {
+      var row = btn.closest('.item-row');
+      var container = document.getElementById('itemListContainer');
+      if(container.querySelectorAll('.item-row').length > 1) {
+        row.remove();
+      }
+    }
+
+    function submitPO(e) {
+      e.preventDefault();
+      
+      var itemRows = document.querySelectorAll('.item-row');
+      var items = [];
+      
+      itemRows.forEach(function(row) {
+        items.push({
+          item: row.querySelector('.item-select').value,
+          qty: row.querySelector('.item-qty').value,
+          disc: row.querySelector('.item-disc').value
+        });
+      });
+
+      var data = {
+        tgl: document.getElementById('poTgl').value,
+        noPo: document.getElementById('poNo').value,
+        customer: document.getElementById('poCustomer').value,
+        items: items
+      };
+      
+      document.getElementById('btnSavePO').disabled = true;
+      google.script.run.withSuccessHandler(function(msg) {
+        showAppToast('success', 'PO selesai disimpan', msg || 'Data Purchase Order berhasil disimpan.');
+        document.getElementById('formPO').reset();
+        document.getElementById('itemListContainer').innerHTML = `
+          <div class="row item-row mb-3 align-items-end border-bottom pb-3">
+            <div class="col-md-5">
+              <label class="form-label">Item Produk</label>
+              <select class="form-select item-select" required>
+                <option value="">-- Pilih Customer Terlebih Dahulu --</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Qty</label>
+              <input type="number" class="form-control item-qty" min="1" step="any" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Discount</label>
+              <input type="number" class="form-control item-disc" value="0">
+            </div>
+            <div class="col-md-1">
+              <button type="button" class="btn btn-danger btn-sm" onclick="removeItemRow(this)" disabled>X</button>
+            </div>
+          </div>
+        `;
+        document.getElementById('btnSavePO').disabled = false;
+        loadActivePOs();
+      }).withFailureHandler(function(err) { showAppError(err, 'Gagal menyimpan PO.'); }).savePO(data);
+    }
+
+    function loadActivePOs() {
+      var select = document.getElementById('doNoPo');
+      if (!select) return;
+      select.innerHTML = '<option value="">Memuat daftar PO...</option>';
+      select.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(pos) {
+          select.innerHTML = '<option value="">-- Pilih No PO --</option>';
+          select.disabled = false;
+          (Array.isArray(pos) ? pos : []).forEach(function(p) {
+            if (p === null || String(p).trim() === '') return;
+            var opt = document.createElement('option');
+            opt.value = String(p);
+            opt.textContent = String(p);
+            select.appendChild(opt);
+          });
+          if (select.options.length === 1) {
+            select.innerHTML = '<option value="">Tidak ada PO aktif</option>';
+          }
+        })
+        .withFailureHandler(function(err) {
+          select.disabled = false;
+          select.innerHTML = '<option value="">Gagal memuat daftar PO</option>';
+          showAppError(err, 'Gagal memuat daftar PO untuk Form DO.');
+        })
+        .getActivePOList();
+    }
+
+    function onPoSelectedForDO() {
+      var po = document.getElementById('doNoPo').value;
+      var container = document.getElementById('doItemListContainer');
+      var btnSave = document.getElementById('btnSaveDO');
+      var btnAddRow = document.getElementById('btnAddDoRow');
+      
+      container.innerHTML = '';
+      if(!po) {
+        container.innerHTML = '<p class="text-muted">Silakan pilih No PO terlebih dahulu.</p>';
+        btnSave.disabled = true;
+        btnAddRow.style.display = 'none';
+        return;
+      }
+      
+      google.script.run.withSuccessHandler(function(details) {
+        currentPoDetails = details;
+        if(!details || details.length === 0) {
+          container.innerHTML = '<div class="alert alert-warning">Semua item pada PO ini sudah terkirim (Close).</div>';
+          btnSave.disabled = true;
+          btnAddRow.style.display = 'none';
+          return;
+        }
+        
+        // Buat baris pertama DO secara otomatis berdasarkan data sisa PO
+        container.innerHTML = '';
+        addDoItemRow();
+        btnAddRow.style.display = 'inline-block';
+        btnSave.disabled = false;
+      }).getPODetailsForDO(po);
+    }
+
+    // Menambah baris item DO secara dinamis
+    function addDoItemRow() {
+      var container = document.getElementById('doItemListContainer');
+      var rowIndex = container.querySelectorAll('.do-item-row').length;
+      
+      var rowDiv = document.createElement('div');
+      rowDiv.className = 'row do-item-row mb-3 align-items-end border-bottom pb-2';
+      
+      var optionsHtml = '<option value="">-- Pilih Item --</option>';
+      currentPoDetails.forEach(function(d) {
+        var safeItem = escapeHtml(d.item);
+        optionsHtml += '<option value="' + safeItem + '" data-max="' + Number(d.maxQty) + '">' + safeItem + ' (Sisa: ' + Number(d.maxQty) + ')</option>';
+      });
+      
+      rowDiv.innerHTML = `
+        <div class="col-md-6">
+          <label class="form-label">Item Produk</label>
+          <select class="form-select do-item-select" onchange="updateMaxQty(this)" required>
+            ${optionsHtml}
+          </select>
+          <small class="d-block text-muted max-qty-info">Pilih item untuk melihat sisa Qty</small>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">QTY DO Dikirim</label>
+          <input type="number" class="form-control do-item-qty" min="1" required>
+        </div>
+        <div class="col-md-1">
+          <button type="button" class="btn btn-danger btn-sm" onclick="removeDoItemRow(this)">X</button>
+        </div>
+      `;
+      
+      container.appendChild(rowDiv);
+    }
+
+    function removeDoItemRow(btn) {
+      var row = btn.closest('.do-item-row');
+      var container = document.getElementById('doItemListContainer');
+      if(container.querySelectorAll('.do-item-row').length > 1) {
+        row.remove();
+      } else {
+        showAppToast('info', 'Item DO belum lengkap', 'Tambahkan minimal satu item pengiriman DO.');
+      }
+    }
+
+    function updateMaxQty(selectElem) {
+      var selectedOption = selectElem.options[selectElem.selectedIndex];
+      var maxQty = selectedOption.getAttribute('data-max') || 0;
+      var row = selectElem.closest('.do-item-row');
+      var infoSmall = row.querySelector('.max-qty-info');
+      var qtyInput = row.querySelector('.do-item-qty');
+      
+      infoSmall.textContent = "Sisa Qty PO yang belum dikirim: " + maxQty;
+      qtyInput.setAttribute('max', maxQty);
+      qtyInput.value = maxQty; // Set default ke sisa maksimal
+    }
+
+    function submitDO(e) {
+      e.preventDefault();
+      var noPo = document.getElementById('doNoPo').value;
+      var rows = document.querySelectorAll('.do-item-row');
+      var items = [];
+      
+      var isValid = true;
+      rows.forEach(function(row) {
+        var itemVal = row.querySelector('.do-item-select').value;
+        var qtyVal = parseFloat(row.querySelector('.do-item-qty').value) || 0;
+        var maxVal = parseFloat(row.querySelector('.do-item-qty').getAttribute('max')) || 0;
+        
+        if(qtyVal > maxVal) {
+          showAppToast('error', 'QTY melebihi sisa PO', 'QTY kirim untuk item ' + itemVal + ' melebihi sisa PO (' + maxVal + ').', 6000);
+          isValid = false;
+        }
+        
+        items.push({
+          item: itemVal,
+          qtyDo: qtyVal
+        });
+      });
+      
+      if(!isValid) return;
+      
+      var data = {
+        noPo: noPo,
+        items: items
+      };
+      
+      document.getElementById('btnSaveDO').disabled = true;
+      google.script.run.withSuccessHandler(function(msg) {
+        showAppToast('success', 'DO selesai disimpan', msg || 'Data Delivery Order berhasil disimpan.');
+        document.getElementById('formDO').reset();
+        document.getElementById('doItemListContainer').innerHTML = '<p class="text-muted">Silakan pilih No PO terlebih dahulu.</p>';
+        document.getElementById('btnAddDoRow').style.display = 'none';
+        document.getElementById('btnSaveDO').disabled = true;
+        loadActivePOs();
+        loadClosedPOsForInvoice();
+      }).withFailureHandler(function(err) { showAppError(err, 'Gagal menyimpan DO.'); }).saveDO(data);
+    }
+
+    function loadClosedPOsForInvoice() {
+      var select = document.getElementById('invNoPo');
+      if (!select) return;
+      select.innerHTML = '<option value="">Memuat PO berstatus CLOSE...</option>';
+      select.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(pos) {
+          select.innerHTML = '<option value="">-- Pilih No PO Status Close --</option>';
+          select.disabled = false;
+          (Array.isArray(pos) ? pos : []).forEach(function(p) {
+            if (p === null || String(p).trim() === '') return;
+            var opt = document.createElement('option');
+            opt.value = String(p);
+            opt.textContent = String(p);
+            select.appendChild(opt);
+          });
+          if (select.options.length === 1) {
+            select.innerHTML = '<option value="">Tidak ada PO berstatus CLOSE</option>';
+          }
+        })
+        .withFailureHandler(function(err) {
+          select.disabled = false;
+          select.innerHTML = '<option value="">Gagal memuat PO Invoice</option>';
+          showAppError(err, 'Gagal memuat PO berstatus CLOSE untuk Invoice.');
+        })
+        .getClosedPOListForInvoice();
+    }
+
+    function previewInvoicePDF() {
+      runInvoiceAction('preview');
+    }
+
+    function downloadInvoicePDF() {
+      runInvoiceAction('download');
+    }
+
+    function runInvoiceAction(action) {
+      var po = document.getElementById('invNoPo').value;
+      if (!po) {
+        showAppToast('info', 'Pilih PO', 'Silakan pilih nomor PO terlebih dahulu.');
+        return;
+      }
+
+      // Buka tab secara sinkron agar tidak diblokir popup blocker browser.
+      var previewWindow = null;
+      if (action === 'preview') {
+        previewWindow = window.open('about:blank', '_blank');
+        if (!previewWindow) {
+          showAppToast('error', 'Preview diblokir', 'Izinkan pop-up untuk aplikasi ini, lalu coba lagi.');
+          return;
+        }
+        previewWindow.document.write('<p style="font-family:Arial;padding:20px">Sedang membuat preview invoice...</p>');
+      }
+
+      var previewBtn = document.getElementById('btnPreviewInvoice');
+      var downloadBtn = document.getElementById('btnDownloadInvoice');
+      previewBtn.disabled = true;
+      downloadBtn.disabled = true;
+      var originalPreviewText = previewBtn.textContent;
+      var originalDownloadText = downloadBtn.textContent;
+      previewBtn.textContent = 'Memproses...';
+      downloadBtn.textContent = 'Memproses...';
+
+      google.script.run.withSuccessHandler(function(res) {
+        try {
+          if (!res || !res.fileData || !res.fileName) throw new Error('Server tidak mengembalikan file PDF yang valid.');
+          var bytes = base64ToByteArray(res.fileData);
+          var blob = new Blob([bytes], {type: 'application/pdf'});
+          var objectUrl = window.URL.createObjectURL(blob);
+          if (action === 'preview') {
+            // Preview aman: library renderer dimuat secara dinamis tanpa markup script bersarang.
+            // Tag script bersarang dapat memutus parsing HTMLService dan membuat seluruh
+            // JavaScript halaman (dropdown/input) tidak berjalan.
+            var base64ForViewer = res.fileData;
+            var viewerDoc = '<!doctype html><html lang="id"><head>' +
+              '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+              '<title>Preview Invoice - Portal PT. KJP</title>' +
+              '<style>' +
+              '*{box-sizing:border-box}body{margin:0;background:#e8edf4;color:#172b4d;font-family:Arial,sans-serif}' +
+              '.bar{position:sticky;top:0;z-index:5;background:#092d63;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 3px 12px #0002}' +
+              '.brand{font-weight:700;flex:1}.hint{font-size:12px;opacity:.8}.pages{padding:16px;display:flex;flex-direction:column;align-items:center;gap:16px}' +
+              '.page{background:#fff;box-shadow:0 4px 18px #10233d22;max-width:100%;overflow:hidden}.page canvas{display:block;max-width:100%;height:auto}' +
+              '.status{padding:24px;text-align:center}.btn{border:0;border-radius:8px;background:#ffbf00;color:#14213d;padding:9px 13px;font-weight:700;cursor:pointer}' +
+              '@media(max-width:600px){.bar{padding:10px}.hint{display:none}.pages{padding:8px;gap:8px}}' +
+              '@page{size:A4 portrait;margin:0}' +
+              '@media print{html,body{width:auto!important;height:auto!important;min-height:0!important;margin:0!important;padding:0!important;background:#fff!important;overflow:hidden!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.bar,.status{display:none!important}#pages{display:block!important;margin:0!important;padding:0!important;gap:0!important;width:210mm!important;height:297mm!important;overflow:hidden!important}.page{display:none!important;box-shadow:none!important;border:0!important;margin:0!important;padding:0!important;width:210mm!important;height:297mm!important;max-width:210mm!important;max-height:297mm!important;overflow:hidden!important;break-after:avoid!important;page-break-after:avoid!important}.page:first-child{display:block!important}.page canvas{display:block!important;width:210mm!important;height:297mm!important;max-width:210mm!important;max-height:297mm!important;object-fit:contain!important;margin:0 auto!important;padding:0!important}}' +
+              '</style></head><body><div class="bar"><div class="brand">Portal System KJP · Preview Invoice</div>' +
+              '<div class="hint">PDF Invoice</div><button id="printBtn" class="btn">Cetak</button></div>' +
+              '<div id="status" class="status">Memuat invoice, mohon tunggu…</div><div id="pages" class="pages"></div>' +
+              '</body></html>';
+            previewWindow.document.open();
+            previewWindow.document.write(viewerDoc);
+            previewWindow.document.close();
+
+            previewWindow.document.getElementById('printBtn').onclick = function() {
+              var firstCanvas = previewWindow.document.querySelector('#pages .page canvas');
+              if (!firstCanvas) {
+                var status = previewWindow.document.getElementById('status');
+                if (status) status.textContent = 'Invoice masih dimuat. Tunggu hingga preview tampil, lalu cetak kembali.';
+                return;
+              }
+              previewWindow.focus();
+              previewWindow.print();
+            };
+
+            var pdfScript = previewWindow.document.createElement('script');
+            pdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+            pdfScript.onload = async function() {
+              var statusEl = previewWindow.document.getElementById('status');
+              var host = previewWindow.document.getElementById('pages');
+              try {
+                var pdfjs = previewWindow.pdfjsLib;
+                if (!pdfjs) throw new Error('PDF.js tidak berhasil dimuat. Periksa koneksi internet.');
+                pdfjs.GlobalWorkerOptions.workerSrc =
+                  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                var raw = atob(base64ForViewer);
+                var arr = new Uint8Array(raw.length);
+                for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+                var pdf = await pdfjs.getDocument({ data: arr }).promise;
+                statusEl.style.display = 'none';
+
+                for (var n = 1; n <= pdf.numPages; n++) {
+                  var page = await pdf.getPage(n);
+                  var baseViewport = page.getViewport({ scale: 1 });
+                  var maxWidth = Math.min(previewWindow.innerWidth - 24, 1000);
+                  var scale = Math.min(maxWidth / baseViewport.width, 1.6);
+                  var viewport = page.getViewport({ scale: scale });
+                  var wrap = previewWindow.document.createElement('div');
+                  wrap.className = 'page';
+                  var canvas = previewWindow.document.createElement('canvas');
+                  var context = canvas.getContext('2d');
+                  canvas.width = Math.floor(viewport.width);
+                  canvas.height = Math.floor(viewport.height);
+                  wrap.appendChild(canvas);
+                  host.appendChild(wrap);
+                  await page.render({ canvasContext: context, viewport: viewport }).promise;
+                }
+              } catch (previewError) {
+                statusEl.style.display = 'block';
+                statusEl.textContent = 'Preview gagal dimuat: ' + previewError.message +
+                  '. Silakan gunakan Download PDF.';
+              }
+            };
+            pdfScript.onerror = function() {
+              var statusEl = previewWindow.document.getElementById('status');
+              statusEl.textContent = 'Komponen preview tidak dapat dimuat. Periksa koneksi internet atau gunakan Download PDF.';
+            };
+            previewWindow.document.head.appendChild(pdfScript);
+          } else {
+            var link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = res.fileName;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+          }
+          window.setTimeout(function() { window.URL.revokeObjectURL(objectUrl); }, 60000);
+        } catch (err) {
+          if (previewWindow && !previewWindow.closed) previewWindow.close();
+          showAppError(err, 'Gagal menampilkan PDF invoice.');
+        } finally {
+          previewBtn.disabled = false;
+          downloadBtn.disabled = false;
+          previewBtn.textContent = originalPreviewText;
+          downloadBtn.textContent = originalDownloadText;
+        }
+      }).withFailureHandler(function(err) {
+        if (previewWindow && !previewWindow.closed) previewWindow.close();
+        showAppError(err, 'Gagal membuat invoice.');
+        previewBtn.disabled = false;
+        downloadBtn.disabled = false;
+        previewBtn.textContent = originalPreviewText;
+        downloadBtn.textContent = originalDownloadText;
+      }).generateInvoicePDF(po);
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function base64ToByteArray(base64) {
+      var binaryString = window.atob(base64);
+      var len = binaryString.length;
+      var bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes;
+    }
+  </script>
 </body>
 </html>
