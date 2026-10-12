@@ -260,78 +260,275 @@
   <!-- Script Frontend -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    // GitHub Pages compatibility bridge: keeps existing google.script.run calls intact.
-    (function () {
-      'use strict';
-      var BRIDGE_URL = 'https://script.google.com/macros/s/AKfycbxs8B5HgHj9zX0SQjrtTFzy6LheXZDIUyn-0KkAXIZ8M1S0ChrXgCm8F0lK8L8_a3wSuw/exec?bridge=1';
-      var ALLOWED_METHODS = new Set([
-        'getDashboardData', 'getCustomerList', 'getItemListByCustomer', 'savePO',
-        'getActivePOList', 'getPODetailsForDO', 'saveDO',
-        'getClosedPOListForInvoice', 'generateInvoicePDF'
-      ]);
-      var iframe = document.createElement('iframe');
-      iframe.title = 'KJP backend connection';
-      iframe.setAttribute('aria-hidden', 'true');
-      iframe.tabIndex = -1;
-      iframe.style.cssText = 'position:absolute;width:1px;height:1px;border:0;opacity:0;pointer-events:none;left:-10px;top:-10px';
-      iframe.src = BRIDGE_URL;
-      var bridgeReady = false;
-      var queue = [];
-      var nextId = 1;
-      var pending = new Map();
+    // GitHub Pages compatibility bridge
+// Mempertahankan pemanggilan google.script.run yang sudah ada.
+(function () {
+  'use strict';
 
-      function sendRequest(req) {
-        if (!bridgeReady || !iframe.contentWindow) { queue.push(req); return; }
-        iframe.contentWindow.postMessage({ type: 'KJP_RPC', id: req.id, method: req.method, args: req.args }, '*');
+  var BRIDGE_URL =
+    'https://script.google.com/macros/s/AKfycbxs8B5HgHj9zX0SQjrtTFzy6LheXZDIUyn-0KkAXIZ8M1S0ChrXgCm8F0lK8L8_a3wSuw/exec?bridge=1';
+
+  var ALLOWED_METHODS = new Set([
+    'getDashboardData',
+    'getCustomerList',
+    'getItemListByCustomer',
+    'savePO',
+    'getActivePOList',
+    'getPODetailsForDO',
+    'saveDO',
+    'getClosedPOListForInvoice',
+    'generateInvoicePDF'
+  ]);
+
+  var iframe = document.createElement('iframe');
+
+  iframe.title = 'KJP backend connection';
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.tabIndex = -1;
+  iframe.style.cssText =
+    'position:absolute;width:1px;height:1px;border:0;' +
+    'opacity:0;pointer-events:none;left:-10px;top:-10px';
+
+  var bridgeReady = false;
+  var queue = [];
+  var pending = new Map();
+  var nextId = 1;
+  var pingTimer = null;
+  var pingAttempts = 0;
+
+  function showBridgeError(message) {
+    console.error('[KJP Bridge]', message);
+
+    if (typeof window.showAppToast === 'function') {
+      window.showAppToast(
+        'error',
+        'Koneksi backend bermasalah',
+        message,
+        7000
+      );
+    }
+  }
+
+  function sendPing() {
+    if (bridgeReady || !iframe.contentWindow) return;
+
+    pingAttempts++;
+
+    iframe.contentWindow.postMessage(
+      { type: 'KJP_BRIDGE_PING' },
+      '*'
+    );
+
+    if (pingAttempts >= 40 && pingTimer) {
+      clearInterval(pingTimer);
+      pingTimer = null;
+
+      if (!bridgeReady) {
+        showBridgeError(
+          'Bridge Apps Script belum memberikan respons. ' +
+          'Periksa URL deployment dan konfigurasi Bridge.html.'
+        );
       }
-      function flushQueue() {
-        while (bridgeReady && queue.length) sendRequest(queue.shift());
+    }
+  }
+
+  function startHandshake() {
+    if (bridgeReady || pingTimer) return;
+
+    pingAttempts = 0;
+    sendPing();
+
+    pingTimer = setInterval(function () {
+      if (bridgeReady) {
+        clearInterval(pingTimer);
+        pingTimer = null;
+        return;
       }
-      window.addEventListener('message', function (event) {
-        if (event.source !== iframe.contentWindow || !event.data) return;
-        var msg = event.data;
-        if (msg.type === 'KJP_BRIDGE_READY') { bridgeReady = true; flushQueue(); return; }
-        if (msg.type !== 'KJP_RPC_RESULT') return;
-        var item = pending.get(msg.id);
-        if (!item) return;
-        pending.delete(msg.id);
-        if (msg.ok) { if (typeof item.success === 'function') item.success(msg.result); }
-        else {
-          var err = new Error(msg.error || 'Permintaan ke server gagal.');
-          if (typeof item.failure === 'function') item.failure(err);
-          else console.error(err);
+
+      sendPing();
+    }, 500);
+  }
+
+  function flushQueue() {
+    while (bridgeReady && queue.length > 0) {
+      var req = queue.shift();
+      transmit(req);
+    }
+  }
+
+  function transmit(req) {
+    if (!iframe.contentWindow) {
+      finishRequest(
+        req.id,
+        false,
+        'Frame koneksi backend belum tersedia.'
+      );
+      return;
+    }
+
+    req.timer = setTimeout(function () {
+      finishRequest(
+        req.id,
+        false,
+        'Permintaan ke server melewati batas waktu. ' +
+        'Silakan coba kembali.'
+      );
+    }, 30000);
+
+    pending.set(req.id, req);
+
+    iframe.contentWindow.postMessage(
+      {
+        type: 'KJP_RPC',
+        id: req.id,
+        method: req.method,
+        args: req.args
+      },
+      '*'
+    );
+  }
+
+  function finishRequest(id, ok, value) {
+    var req = pending.get(id);
+
+    if (!req) return;
+
+    pending.delete(id);
+
+    if (req.timer) clearTimeout(req.timer);
+
+    if (ok) {
+      if (typeof req.success === 'function') {
+        req.success(value);
+      }
+    } else {
+      var error = value instanceof Error
+        ? value
+        : new Error(String(value || 'Permintaan backend gagal.'));
+
+      if (typeof req.failure === 'function') {
+        req.failure(error);
+      } else {
+        console.error('[KJP RPC]', error);
+      }
+    }
+  }
+
+  window.addEventListener('message', function (event) {
+    // Hanya menerima pesan dari iframe Bridge yang kita buat.
+    if (event.source !== iframe.contentWindow || !event.data) {
+      return;
+    }
+
+    var msg = event.data;
+
+    if (msg.type === 'KJP_BRIDGE_READY') {
+      bridgeReady = true;
+
+      if (pingTimer) {
+        clearInterval(pingTimer);
+        pingTimer = null;
+      }
+
+      flushQueue();
+
+      console.info('[KJP Bridge] Terhubung ke Apps Script.');
+      return;
+    }
+
+    if (msg.type !== 'KJP_RPC_RESULT') return;
+
+    finishRequest(
+      msg.id,
+      msg.ok === true,
+      msg.ok === true
+        ? msg.result
+        : (msg.error || 'Kesalahan backend.')
+    );
+  });
+
+  iframe.addEventListener('load', function () {
+    startHandshake();
+  });
+
+  iframe.addEventListener('error', function () {
+    showBridgeError(
+      'Iframe Bridge gagal dimuat. Periksa URL Apps Script.'
+    );
+  });
+
+  iframe.src = BRIDGE_URL;
+
+  (document.body || document.documentElement).appendChild(iframe);
+
+  function makeRunner(success, failure) {
+    return new Proxy({}, {
+      get: function (_target, prop) {
+        if (prop === 'withSuccessHandler') {
+          return function (fn) {
+            return makeRunner(fn, failure);
+          };
         }
-      });
-      iframe.addEventListener('load', function () {
-        if (iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'KJP_BRIDGE_PING' }, '*');
-      });
-      (document.body || document.documentElement).appendChild(iframe);
 
-      function makeRunner(success, failure) {
-        return new Proxy({}, {
-          get: function (_target, prop) {
-            if (prop === 'withSuccessHandler') return function (fn) { return makeRunner(fn, failure); };
-            if (prop === 'withFailureHandler') return function (fn) { return makeRunner(success, fn); };
-            if (prop === 'withUserObject') return function () { return makeRunner(success, failure); };
-            if (typeof prop !== 'string') return undefined;
-            return function () {
-              if (!ALLOWED_METHODS.has(prop)) {
-                var error = new Error('Metode backend tidak diizinkan: ' + prop);
-                if (typeof failure === 'function') failure(error); else console.error(error);
-                return;
-              }
-              var id = nextId++;
-              pending.set(id, { success: success, failure: failure });
-              sendRequest({ id: id, method: prop, args: Array.prototype.slice.call(arguments) });
-            };
+        if (prop === 'withFailureHandler') {
+          return function (fn) {
+            return makeRunner(success, fn);
+          };
+        }
+
+        if (prop === 'withUserObject') {
+          return function () {
+            return makeRunner(success, failure);
+          };
+        }
+
+        if (typeof prop !== 'string') return undefined;
+
+        return function () {
+          if (!ALLOWED_METHODS.has(prop)) {
+            var error = new Error(
+              'Metode backend tidak diizinkan: ' + prop
+            );
+
+            if (typeof failure === 'function') {
+              failure(error);
+            } else {
+              console.error(error);
+            }
+
+            return;
           }
-        });
-      }
-      window.google = window.google || {};
-      window.google.script = window.google.script || {};
-      Object.defineProperty(window.google.script, 'run', { configurable: true, get: function () { return makeRunner(null, null); } });
-    })();
 
+          var req = {
+            id: nextId++,
+            method: prop,
+            args: Array.prototype.slice.call(arguments),
+            success: success,
+            failure: failure,
+            timer: null
+          };
+
+          if (bridgeReady) {
+            transmit(req);
+          } else {
+            queue.push(req);
+            startHandshake();
+          }
+        };
+      }
+    });
+  }
+
+  window.google = window.google || {};
+  window.google.script = window.google.script || {};
+
+  Object.defineProperty(window.google.script, 'run', {
+    configurable: true,
+    get: function () {
+      return makeRunner(null, null);
+    }
+  });
+})();
     var globalItemsList = [];
     var currentPoDetails = []; // Menyimpan sisa item PO yang aktif
 
